@@ -9,7 +9,7 @@ import 'network_event.dart';
 import 'network_logger.dart';
 
 /// Overlay for [NetworkLoggerButton].
-class NetworkLoggerOverlay extends StatelessWidget {
+class NetworkLoggerOverlay extends StatefulWidget {
   NetworkLoggerOverlay._({Key? key}) : super(key: key);
 
   /// Attach overlay to specified [context].
@@ -30,8 +30,41 @@ class NetworkLoggerOverlay extends StatelessWidget {
   }
 
   @override
+  State<NetworkLoggerOverlay> createState() => _NetworkLoggerOverlayState();
+}
+
+class _NetworkLoggerOverlayState extends State<NetworkLoggerOverlay> {
+  Offset _offset = Offset(-10, 100);
+
+  @override
   Widget build(BuildContext context) {
-    return Positioned(right: 30, bottom: 100, child: NetworkLoggerButton());
+    final screen = MediaQuery.of(context).size;
+    return Positioned(
+      right: _offset.dx,
+      bottom: _offset.dy,
+      child: GestureDetector(
+        onPanUpdate: (details) {
+          setState(() {
+            _offset -= details.delta;
+            if (_offset.dx < -35) {
+              _offset = Offset(-35, _offset.dy);
+            } else if (_offset.dx > (screen.width - 20)) {
+              _offset = Offset((screen.width - 20), _offset.dy);
+            }
+            if (_offset.dy < -35) {
+              _offset = Offset(_offset.dx, -35);
+            } else if (_offset.dy > (screen.height - 20)) {
+              _offset = Offset(_offset.dx, (screen.height - 20));
+            }
+          });
+        },
+        child: SizedBox(
+          width: 56,
+          height: 56,
+          child: NetworkLoggerButton(),
+        ),
+      ),
+    );
   }
 }
 
@@ -43,7 +76,7 @@ class NetworkLoggerButton extends StatefulWidget {
 
   NetworkLoggerButton({
     Key? key,
-    this.color = Colors.deepPurple,
+    this.color = Colors.deepOrange,
     this.blinkPeriod = const Duration(seconds: 1, microseconds: 500),
     NetworkEventList? eventList,
   })  : this.eventList = eventList ?? NetworkLogger.instance,
@@ -136,101 +169,99 @@ class NetworkLoggerScreen extends StatelessWidget {
     );
   }
 
-  final TextEditingController searchController =
-      TextEditingController(text: null);
+  final TextEditingController searchController = TextEditingController(text: null);
 
   /// filte events with search keyword
   List<NetworkEvent> getEvents() {
     if (searchController.text.isEmpty) return eventList.events;
     final query = searchController.text.toLowerCase();
-    return eventList.events
-        .where((it) => it.request?.uri.toLowerCase().contains(query) ?? false)
-        .toList();
+    return eventList.events.where((it) => it.request?.uri.toLowerCase().contains(query) ?? false).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Network Logs'),
-        actions: <Widget>[
-          IconButton(
-            icon: Icon(Icons.delete),
-            onPressed: () => eventList.clear(),
-          ),
-        ],
-      ),
-      body: StreamBuilder(
-        stream: eventList.stream,
-        builder: (context, snapshot) {
-          //filte events with search keyword
-          final events = getEvents();
-          return Column(
-            children: [
-              TextField(
-                controller: searchController,
-                onChanged: (text) {
-                  eventList.updated(NetworkEvent());
-                },
-                autocorrect: false,
-                textAlignVertical: TextAlignVertical.center,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: Colors.black26,
-                  ),
-                  suffix: Text(getEvents().length.toString() + ' results'),
-                  hintText: "enter keyword to search",
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                    borderRadius: const BorderRadius.all(
-                      const Radius.circular(0.0),
+    return Theme(
+      data: ThemeData.light(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('Network Logs'),
+          actions: <Widget>[
+            IconButton(
+              icon: Icon(Icons.delete),
+              onPressed: () => eventList.clear(),
+            ),
+          ],
+        ),
+        body: StreamBuilder(
+          stream: eventList.stream,
+          builder: (context, snapshot) {
+            //filte events with search keyword
+            final events = getEvents();
+            return Column(
+              children: [
+                TextField(
+                  controller: searchController,
+                  onChanged: (text) {
+                    eventList.updated(NetworkEvent());
+                  },
+                  autocorrect: false,
+                  textAlignVertical: TextAlignVertical.center,
+                  decoration: InputDecoration(
+                    filled: true,
+                    // fillColor: Colors.white,
+                    prefixIcon: Icon(
+                      Icons.search,
+                      // color: Colors.black26,
                     ),
+                    suffix: Text(getEvents().length.toString() + ' results'),
+                    hintText: "enter keyword to search",
+                    // focusedBorder: OutlineInputBorder(
+                    //   borderSide: BorderSide(color: Colors.white),
+                    //   borderRadius: const BorderRadius.all(
+                    //     const Radius.circular(0.0),
+                    //   ),
+                    // ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: events.length,
-                  itemBuilder: enumerateItems<NetworkEvent>(
-                    events,
-                    (context, item) => ListTile(
-                      key: ValueKey(item.request),
-                      title: Text(
-                        item.request!.method,
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        item.request!.uri.toString(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      leading: Icon(
-                        item.error == null
-                            ? (item.response == null
-                                ? Icons.hourglass_empty
-                                : Icons.done)
-                            : Icons.error,
-                      ),
-                      trailing: AutoUpdate(
-                        duration: Duration(seconds: 1),
-                        builder: (context) =>
-                            Text(_timeDifference(item.timestamp!)),
-                      ),
-                      onTap: () => NetworkLoggerEventScreen.open(
-                        context,
-                        item,
-                        eventList,
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: events.length,
+                    itemBuilder: enumerateItems<NetworkEvent>(
+                      events,
+                      (context, item) => ListTile(
+                        key: ValueKey(item.request),
+                        title: Text(
+                          item.request!.method,
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          item.request!.uri.toString(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        leading: Icon(
+                          item.error == null
+                              ? (item.response == null ? Icons.hourglass_empty : Icons.done)
+                              : Icons.close,
+                          color: item.error == null ? (item.response == null ? Colors.grey : Colors.green) : Colors.red,
+                        ),
+                        trailing: AutoUpdate(
+                          duration: Duration(seconds: 1),
+                          builder: (context) => Text(_timeDifference(item.timestamp!)),
+                        ),
+                        onTap: () => NetworkLoggerEventScreen.open(
+                          context,
+                          item,
+                          eventList,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              )
-            ],
-          );
-        },
+                )
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -252,8 +283,7 @@ final _jsonEncoder = JsonEncoder.withIndent('  ');
 
 /// Screen that displays log entry details.
 class NetworkLoggerEventScreen extends StatelessWidget {
-  const NetworkLoggerEventScreen({Key? key, required this.event})
-      : super(key: key);
+  const NetworkLoggerEventScreen({Key? key, required this.event}) : super(key: key);
 
   static Route<void> route({
     required NetworkEvent event,
@@ -282,7 +312,7 @@ class NetworkLoggerEventScreen extends StatelessWidget {
   /// Which event to display details for.
   final NetworkEvent event;
 
-  Widget buildBodyViewer(BuildContext context, dynamic body) {
+  Widget buildBodyViewer(BuildContext context, dynamic body, {Color color: Colors.black}) {
     String text;
     if (body == null) {
       text = '';
@@ -306,9 +336,10 @@ class NetworkLoggerEventScreen extends StatelessWidget {
         },
         child: Text(
           text,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'monospace',
             fontFamilyFallback: ['sans-serif'],
+            color: color,
           ),
         ),
       ),
@@ -343,8 +374,8 @@ class NetworkLoggerEventScreen extends StatelessWidget {
   }
 
   Widget buildRequestView(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 15),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.fromLTRB(15, 0, 15, 5),
@@ -403,8 +434,10 @@ class NetworkLoggerEventScreen extends StatelessWidget {
   }
 
   Widget buildResponseView(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 15),
+    final statusCode = event.response?.statusCode ?? 0;
+    final color = (statusCode >= 200 && statusCode <= 299) ? Colors.green : Colors.red;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.fromLTRB(15, 0, 15, 5),
@@ -418,10 +451,14 @@ class NetworkLoggerEventScreen extends StatelessWidget {
             children: <Widget>[
               Text(
                 event.response!.statusCode.toString(),
-                style: Theme.of(context).textTheme.bodyText1,
+                style: Theme.of(context).textTheme.bodyText1?.copyWith(color: color),
               ),
               SizedBox(width: 15),
-              Expanded(child: Text(event.response!.statusMessage)),
+              Expanded(
+                  child: Text(
+                event.response!.statusMessage,
+                style: Theme.of(context).textTheme.bodyText1?.copyWith(color: color),
+              )),
             ],
           ),
         ),
@@ -439,7 +476,7 @@ class NetworkLoggerEventScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(15, 10, 15, 5),
           child: Text('BODY', style: Theme.of(context).textTheme.caption),
         ),
-        buildBodyViewer(context, event.response?.data),
+        buildBodyViewer(context, event.response?.data, color: color),
       ],
     );
   }
@@ -447,29 +484,33 @@ class NetworkLoggerEventScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final showResponse = event.response != null;
-
-    Widget? bottom;
-    if (showResponse) {
-      bottom = TabBar(tabs: [
-        Tab(text: 'Request'),
-        Tab(text: 'Response'),
-      ]);
-    }
-
-    return DefaultTabController(
-      initialIndex: 0,
-      length: showResponse ? 2 : 1,
+    return Theme(
+      data: ThemeData.light(),
       child: Scaffold(
         appBar: AppBar(
           title: Text('Log Entry'),
-          bottom: (bottom as PreferredSizeWidget?),
+          // bottom: (bottom as PreferredSizeWidget?),
         ),
         body: Builder(
-            builder: (context) => TabBarView(
-                  children: <Widget>[
-                    buildRequestView(context),
-                    if (showResponse) buildResponseView(context),
-                  ],
+            builder: (context) => SingleChildScrollView(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Request',
+                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      buildRequestView(context),
+                      if (showResponse) ...[
+                        const Divider(height: 32, thickness: 1),
+                        Text('Response', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        buildResponseView(context),
+                      ],
+                    ],
+                  ),
                 )),
       ),
     );
@@ -478,8 +519,7 @@ class NetworkLoggerEventScreen extends StatelessWidget {
 
 /// Widget builder that re-builds widget repeatedly with [duration] interval.
 class AutoUpdate extends StatefulWidget {
-  const AutoUpdate({Key? key, required this.duration, required this.builder})
-      : super(key: key);
+  const AutoUpdate({Key? key, required this.duration, required this.builder}) : super(key: key);
 
   /// Re-build interval.
   final Duration duration;
