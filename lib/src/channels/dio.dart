@@ -7,12 +7,10 @@ class DioNetworkLogger extends dio.Interceptor {
   final NetworkEventList eventList;
   final _requests = <dio.RequestOptions, NetworkEvent>{};
 
-  DioNetworkLogger({NetworkEventList? eventList})
-      : this.eventList = eventList ?? NetworkLogger.instance;
+  DioNetworkLogger({NetworkEventList? eventList}) : this.eventList = eventList ?? NetworkLogger.instance;
 
   @override
-  Future<void> onRequest(
-      dio.RequestOptions options, dio.RequestInterceptorHandler handler) async {
+  Future<void> onRequest(dio.RequestOptions options, dio.RequestInterceptorHandler handler) async {
     super.onRequest(options, handler);
     eventList.add(_requests[options] = NetworkEvent.now(
       request: options.toRequest(),
@@ -41,12 +39,14 @@ class DioNetworkLogger extends dio.Interceptor {
   }
 
   @override
-  void onError(dio.DioError err, dio.ErrorInterceptorHandler handler) {
+  void onError(dio.DioException err, dio.ErrorInterceptorHandler handler) {
     super.onError(err, handler);
     var event = _requests[err.requestOptions];
     if (event != null) {
       _requests.remove(err.requestOptions);
-      eventList.updated(event..error = err.toNetworkError()..response = err.response?.toResponse());
+      eventList.updated(event
+        ..error = err.toNetworkError()
+        ..response = err.response?.toResponse());
     } else {
       eventList.add(NetworkEvent.now(
         request: err.requestOptions.toRequest(),
@@ -82,6 +82,6 @@ extension _ResponseX on dio.Response {
       );
 }
 
-extension _DioErrorX on dio.DioError {
+extension _DioErrorX on dio.DioException {
   NetworkError toNetworkError() => NetworkError(message: toString());
 }
